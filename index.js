@@ -50,6 +50,22 @@ async function run() {
       const result = await jobCollection.findOne(query);
       res.send(result);
     });
+    // Applied Jobs
+    app.get("/api/v1/user/applied-job", async (req, res) => {
+      const userEmail = req.query.email;
+      const filter = { applyUserEmail: userEmail };
+      const appliedUserDetails = await appliedJobCollection
+        .find(filter)
+        .toArray();
+      const jobInformation = appliedUserDetails.map(
+        (job) => job.jobInformationId
+      );
+      const query = {
+        _id: { $in: jobInformation.map((id) => new ObjectId(id)) },
+      };
+      const result = await jobCollection.find(query).toArray();
+      res.send(result);
+    });
     // Post Jobs
     app.post("/api/v1/jobs", async (req, res) => {
       const jobs = req.body;
