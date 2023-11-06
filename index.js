@@ -30,6 +30,9 @@ async function run() {
     await client.connect();
 
     const jobCollection = client.db("dream-jobs").collection("all-jobs");
+    const appliedJobCollection = client
+      .db("dream-jobs")
+      .collection("applied-jobs");
     // Get All Jobs
     app.get("/api/v1/jobs", async (req, res) => {
       const email = req.query.email;
@@ -51,6 +54,12 @@ async function run() {
     app.post("/api/v1/jobs", async (req, res) => {
       const jobs = req.body;
       const result = await jobCollection.insertOne(jobs);
+      res.send(result);
+    });
+    // Post Applied Jobs
+    app.post("/api/v1/user/applied-job", async (req, res) => {
+      const appliedJob = req.body;
+      const result = await appliedJobCollection.insertOne(appliedJob);
       res.send(result);
     });
     app.put("/api/v1/job/:id", async (req, res) => {
