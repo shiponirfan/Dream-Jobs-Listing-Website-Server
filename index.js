@@ -40,10 +40,38 @@ async function run() {
       const result = await jobCollection.find(query).toArray();
       res.send(result);
     });
+    // Single Job
+    app.get("/api/v1/job/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await jobCollection.findOne(query);
+      res.send(result);
+    });
     // Post Jobs
     app.post("/api/v1/jobs", async (req, res) => {
       const jobs = req.body;
       const result = await jobCollection.insertOne(jobs);
+      res.send(result);
+    });
+    app.put("/api/v1/job/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const getUpdateJob = req.body;
+      const updateJob = {
+        $set: {
+          jobTitle: getUpdateJob.jobUpdatedData.jobTitle,
+          jobCategory: getUpdateJob.jobUpdatedData.jobCategory,
+          userName: getUpdateJob.jobUpdatedData.userName,
+          userEmail: getUpdateJob.jobUpdatedData.userEmail,
+          pictureUrl: getUpdateJob.jobUpdatedData.pictureUrl,
+          salaryRange: getUpdateJob.jobUpdatedData.salaryRange,
+          jobPostingDate: getUpdateJob.jobUpdatedData.jobPostingDate,
+          applicationDeadline: getUpdateJob.jobUpdatedData.applicationDeadline,
+          jobApplicantsNumber: getUpdateJob.jobUpdatedData.jobApplicantsNumber,
+          jobDescription: getUpdateJob.jobUpdatedData.jobDescription,
+        },
+      };
+      const result = await jobCollection.updateOne(query, updateJob);
       res.send(result);
     });
     // Delete Jobs
