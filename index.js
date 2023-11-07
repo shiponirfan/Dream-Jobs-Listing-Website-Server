@@ -1,19 +1,22 @@
 const express = require("express");
-const app = express();
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 const cors = require("cors");
+const app = express();
 require("dotenv").config();
 const port = process.env.PORT || 5000;
 
 // Middleware
-app.use(express.json());
 app.use(
   cors({
     origin: "http://localhost:5173",
     credentials: true,
   })
 );
+app.use(express.json());
+app.use(cookieParser());
 
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-ujyuzy1-shard-00-00.pzomx9u.mongodb.net:27017,ac-ujyuzy1-shard-00-01.pzomx9u.mongodb.net:27017,ac-ujyuzy1-shard-00-02.pzomx9u.mongodb.net:27017/?ssl=true&replicaSet=atlas-lf5h1l-shard-0&authSource=admin&retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -25,6 +28,21 @@ const client = new MongoClient(uri, {
   },
 });
 
+// JWT Middleware
+const verifyJwtToken = (req, res, next) => {
+  const token = req.cookies.token;
+  if (!token) {
+    return res.status(401).send({ message: "Unauthorized" });
+  }
+  jwt.verify(token, process.env.ACCESS_TOKEN_KEY, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: "Unauthorized" });
+    }
+    req.userJwt = decoded;
+    next();
+  });
+};
+
 async function run() {
   try {
     await client.connect();
@@ -34,9 +52,74 @@ async function run() {
       .db("dream-jobs")
       .collection("applied-jobs");
 
+    // JWT Token
+    app.post("/api/v1/auth/access-token", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_KEY, {
+        expiresIn: "1h",
+      });
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: true,
+          sameSite: "none",
+        })
+        .send({ success: true });
+    });
+    // JWT Token Cancel
+    app.post("/api/v1/auth/access-cancel", async (req, res) => {
+      const user = req.body;
+      res.clearCookie("token", { maxAge: 0 }).send({ success: true });
+    });
+
     // Get All Jobs
     app.get("/api/v1/jobs", async (req, res) => {
       let query = {};
+
+      // Filter By Job Types
+      const jobCategory = req.query.jobCategory;
+      if (jobCategory) {
+        query.jobCategory = jobCategory;
+      }
+
+      // Searchfield
+      const jobTitle = req.query.jobTitle;
+      if (jobTitle) {
+        query.jobTitle = { $regex: jobTitle, $options: "i" };
+      }
+
+      // Sort By Salary Range
+      const sort = req.query.sort;
+      const sortValue = {};
+      if (sort) {
+        sortValue.salaryRange = sort;
+      }
+
+      // Pagination Options
+      const pages = parseInt(req.query.pages);
+      const limit = parseInt(req.query.limit);
+      const skip = (pages - 1) * limit;
+
+      const result = await jobCollection
+        .find(query)
+        .skip(skip)
+        .limit(limit)
+        .sort(sortValue)
+        .toArray();
+
+      // Total Number Of Pages
+      const totalPagesCount = await jobCollection.countDocuments();
+
+      res.send({ result, totalPagesCount });
+    });
+
+    // My Jobs
+    app.get("/api/v1/my-jobs", verifyJwtToken, async (req, res) => {
+      let query = {};
+
+      if (req.query.email !== req.userJwt.email) {
+        return res.status(403).send({ message: "Forbidden" });
+      }
 
       // Check User Email
       const email = req.query.email;
@@ -90,7 +173,10 @@ async function run() {
     });
 
     // Applied Jobs
-    app.get("/api/v1/user/applied-job", async (req, res) => {
+    app.get("/api/v1/user/applied-job", verifyJwtToken, async (req, res) => {
+      if (req.query.email !== req.userJwt.email) {
+        return res.status(403).send({ message: "Forbidden" });
+      }
       const userEmail = req.query.email;
       const filter = { applyUserEmail: userEmail };
       const appliedUserDetails = await appliedJobCollection
