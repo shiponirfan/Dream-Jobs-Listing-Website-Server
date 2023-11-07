@@ -74,8 +74,13 @@ async function run() {
         .limit(limit)
         .sort(sortValue)
         .toArray();
-      res.send(result);
+
+      // Total Number Of Pages
+      const totalPagesCount = await jobCollection.countDocuments();
+
+      res.send({ result, totalPagesCount });
     });
+
     // Single Job
     app.get("/api/v1/job/:id", async (req, res) => {
       const id = req.params.id;
@@ -109,25 +114,38 @@ async function run() {
       }
 
       const result = await jobCollection.find(query).sort(sortValue).toArray();
+
       res.send(result);
     });
 
     // Post Jobs
     app.post("/api/v1/jobs", async (req, res) => {
       const jobs = req.body;
-      const result = await jobCollection.insertOne(jobs);
+      const jobApplicantConvertToInteger = { ...jobs };
+      jobApplicantConvertToInteger.jobApplicantsNumber = parseInt(
+        jobs.jobApplicantsNumber
+      );
+      const result = await jobCollection.insertOne(
+        jobApplicantConvertToInteger
+      );
       res.send(result);
     });
+
     // Post Applied Jobs
     app.post("/api/v1/user/applied-job", async (req, res) => {
       const appliedJob = req.body;
       const result = await appliedJobCollection.insertOne(appliedJob);
       res.send(result);
     });
+
+    // Job Update
     app.put("/api/v1/job/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const getUpdateJob = req.body;
+      const convertNumber = parseInt(
+        getUpdateJob.jobUpdatedData.jobApplicantsNumber
+      );
       const updateJob = {
         $set: {
           jobTitle: getUpdateJob.jobUpdatedData.jobTitle,
@@ -138,13 +156,27 @@ async function run() {
           salaryRange: getUpdateJob.jobUpdatedData.salaryRange,
           jobPostingDate: getUpdateJob.jobUpdatedData.jobPostingDate,
           applicationDeadline: getUpdateJob.jobUpdatedData.applicationDeadline,
-          jobApplicantsNumber: getUpdateJob.jobUpdatedData.jobApplicantsNumber,
+          jobApplicantsNumber: convertNumber,
           jobDescription: getUpdateJob.jobUpdatedData.jobDescription,
         },
       };
       const result = await jobCollection.updateOne(query, updateJob);
       res.send(result);
     });
+
+    // Applicant Count Update
+    app.post("/api/v1/job/update-applicant-count", async (req, res) => {
+      const getUpdateJob = req.body;
+      const query = { _id: new ObjectId(getUpdateJob.applicantCount) };
+      const updateJob = {
+        $inc: {
+          jobApplicantsNumber: 1,
+        },
+      };
+      const result = await jobCollection.updateOne(query, updateJob);
+      res.send(result);
+    });
+
     // Delete Jobs
     app.delete("/api/v1/user/delete-job/:id", async (req, res) => {
       const id = req.params.id;
