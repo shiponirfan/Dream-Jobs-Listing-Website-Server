@@ -33,6 +33,7 @@ async function run() {
     const appliedJobCollection = client
       .db("dream-jobs")
       .collection("applied-jobs");
+
     // Get All Jobs
     app.get("/api/v1/jobs", async (req, res) => {
       const email = req.query.email;
@@ -50,6 +51,7 @@ async function run() {
       const result = await jobCollection.findOne(query);
       res.send(result);
     });
+
     // Applied Jobs
     app.get("/api/v1/user/applied-job", async (req, res) => {
       const userEmail = req.query.email;
@@ -63,9 +65,21 @@ async function run() {
       const query = {
         _id: { $in: jobInformation.map((id) => new ObjectId(id)) },
       };
-      const result = await jobCollection.find(query).toArray();
+
+      const jobCategory = req.query.jobCategory;
+      if (jobCategory) {
+        query.jobCategory = jobCategory;
+      }
+      const sort = req.query.sort;
+      const sortValue = {};
+      if (sort) {
+        sortValue.salaryRange = sort;
+      }
+
+      const result = await jobCollection.find(query).sort(sortValue).toArray();
       res.send(result);
     });
+
     // Post Jobs
     app.post("/api/v1/jobs", async (req, res) => {
       const jobs = req.body;
