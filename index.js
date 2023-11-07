@@ -41,7 +41,27 @@ async function run() {
       if (email) {
         query.userEmail = email;
       }
-      const result = await jobCollection.find(query).toArray();
+
+      const jobCategory = req.query.jobCategory;
+      if (jobCategory) {
+        query.jobCategory = jobCategory;
+      }
+      const sort = req.query.sort;
+      const sortValue = {};
+      if (sort) {
+        sortValue.salaryRange = sort;
+      }
+
+      const pages = parseInt(req.query.pages);
+      const limit = parseInt(req.query.limit);
+      const skip = (pages - 1) * limit;
+
+      const result = await jobCollection
+        .find(query)
+        .skip(skip)
+        .limit(limit)
+        .sort(sortValue)
+        .toArray();
       res.send(result);
     });
     // Single Job
