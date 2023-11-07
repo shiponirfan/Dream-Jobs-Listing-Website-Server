@@ -36,22 +36,34 @@ async function run() {
 
     // Get All Jobs
     app.get("/api/v1/jobs", async (req, res) => {
-      const email = req.query.email;
       let query = {};
+
+      // Check User Email
+      const email = req.query.email;
       if (email) {
         query.userEmail = email;
       }
 
+      // Filter By Job Types
       const jobCategory = req.query.jobCategory;
       if (jobCategory) {
         query.jobCategory = jobCategory;
       }
+
+      // Searchfield
+      const jobTitle = req.query.jobTitle;
+      if (jobTitle) {
+        query.jobTitle = { $regex: jobTitle, $options: "i" };
+      }
+
+      // Sort By Salary Range
       const sort = req.query.sort;
       const sortValue = {};
       if (sort) {
         sortValue.salaryRange = sort;
       }
 
+      // Pagination Options
       const pages = parseInt(req.query.pages);
       const limit = parseInt(req.query.limit);
       const skip = (pages - 1) * limit;
