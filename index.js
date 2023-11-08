@@ -10,14 +10,14 @@ const port = process.env.PORT || 5000;
 // Middleware
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: ["https://dream-jobs-76f13.web.app", "http://localhost:5173"],
     credentials: true,
   })
 );
 app.use(express.json());
 app.use(cookieParser());
 
-const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-ujyuzy1-shard-00-00.pzomx9u.mongodb.net:27017,ac-ujyuzy1-shard-00-01.pzomx9u.mongodb.net:27017,ac-ujyuzy1-shard-00-02.pzomx9u.mongodb.net:27017/?ssl=true&replicaSet=atlas-lf5h1l-shard-0&authSource=admin&retryWrites=true&w=majority`;
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.pzomx9u.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -174,34 +174,42 @@ async function run() {
 
     // Applied Jobs
     app.get("/api/v1/user/applied-job", verifyJwtToken, async (req, res) => {
-      if (req.query.email !== req.userJwt.email) {
-        return res.status(403).send({ message: "Forbidden" });
-      }
-      const userEmail = req.query.email;
-      const filter = { applyUserEmail: userEmail };
-      const appliedUserDetails = await appliedJobCollection
-        .find(filter)
-        .toArray();
-      const jobInformation = appliedUserDetails.map(
-        (job) => job.jobInformationId
-      );
-      const query = {
-        _id: { $in: jobInformation.map((id) => new ObjectId(id)) },
-      };
+      try {
+        if (req.query.email !== req.userJwt.email) {
+          return res.status(403).send({ message: "Forbidden" });
+        }
+        const userEmail = req.query.email;
+        const filter = { applyUserEmail: userEmail };
+        const appliedUserDetails = await appliedJobCollection
+          .find(filter)
+          .toArray();
+        const jobInformation = appliedUserDetails.map(
+          (job) => job.jobInformationId
+        );
+        const query = {
+          _id: { $in: jobInformation.map((id) => new ObjectId(id)) },
+        };
 
-      const jobCategory = req.query.jobCategory;
-      if (jobCategory) {
-        query.jobCategory = jobCategory;
-      }
-      const sort = req.query.sort;
-      const sortValue = {};
-      if (sort) {
-        sortValue.salaryRange = sort;
-      }
+        const jobCategory = req.query.jobCategory;
+        if (jobCategory) {
+          query.jobCategory = jobCategory;
+        }
+        const sort = req.query.sort;
+        const sortValue = {};
+        if (sort) {
+          sortValue.salaryRange = sort;
+        }
 
-      const result = await jobCollection.find(query).sort(sortValue).toArray();
+        const result = await jobCollection
+          .find(query)
+          .sort(sortValue)
+          .toArray();
 
-      res.send(result);
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+        res.status(500).json({ message: "Error" });
+      }
     });
 
     // Post Jobs
@@ -226,28 +234,36 @@ async function run() {
 
     // Job Update
     app.put("/api/v1/job/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const getUpdateJob = req.body;
-      const convertNumber = parseInt(
-        getUpdateJob.jobUpdatedData.jobApplicantsNumber
-      );
-      const updateJob = {
-        $set: {
-          jobTitle: getUpdateJob.jobUpdatedData.jobTitle,
-          jobCategory: getUpdateJob.jobUpdatedData.jobCategory,
-          userName: getUpdateJob.jobUpdatedData.userName,
-          userEmail: getUpdateJob.jobUpdatedData.userEmail,
-          pictureUrl: getUpdateJob.jobUpdatedData.pictureUrl,
-          salaryRange: getUpdateJob.jobUpdatedData.salaryRange,
-          jobPostingDate: getUpdateJob.jobUpdatedData.jobPostingDate,
-          applicationDeadline: getUpdateJob.jobUpdatedData.applicationDeadline,
-          jobApplicantsNumber: convertNumber,
-          jobDescription: getUpdateJob.jobUpdatedData.jobDescription,
-        },
-      };
-      const result = await jobCollection.updateOne(query, updateJob);
-      res.send(result);
+      try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const getUpdateJob = req.body;
+        const convertNumber = parseInt(
+          getUpdateJob.jobUpdatedData.jobApplicantsNumber
+        );
+        const updateJob = {
+          $set: {
+            jobTitle: getUpdateJob.jobUpdatedData.jobTitle,
+            jobCategory: getUpdateJob.jobUpdatedData.jobCategory,
+            userName: getUpdateJob.jobUpdatedData.userName,
+            userEmail: getUpdateJob.jobUpdatedData.userEmail,
+            pictureUrl: getUpdateJob.jobUpdatedData.pictureUrl,
+            salaryRange: getUpdateJob.jobUpdatedData.salaryRange,
+            jobPostingDate: getUpdateJob.jobUpdatedData.jobPostingDate,
+            applicationDeadline:
+              getUpdateJob.jobUpdatedData.applicationDeadline,
+            jobApplicantsNumber: convertNumber,
+            jobDescription: getUpdateJob.jobUpdatedData.jobDescription,
+          },
+        };
+        const result = await jobCollection.updateOne(query, updateJob);
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+        res
+          .status(500)
+          .json({ message: "An error occurred while updating the job" });
+      }
     });
 
     // Applicant Count Update
@@ -272,7 +288,7 @@ async function run() {
     });
 
     // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
