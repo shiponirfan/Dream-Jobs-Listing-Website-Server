@@ -1,16 +1,20 @@
 const express = require("express");
+const app = express();
+const cors = require("cors");
+require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
-const cors = require("cors");
-const app = express();
-require("dotenv").config();
 const port = process.env.PORT || 5000;
 
 // Middleware
 app.use(
   cors({
-    origin: ["https://dream-jobs-76f13.web.app", "http://localhost:5173"],
+    origin: [
+      "https://dream-jobs-76f13.web.app",
+      "https://dreamjobslisting.netlify.app",
+    ],
+    methods: "GET,POST,PUT,DELETE",
     credentials: true,
   })
 );
